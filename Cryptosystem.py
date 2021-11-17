@@ -17,21 +17,61 @@ class CryptoSystem:
         self.key3 = (((self.key_part1 ^ 9860) | self.key_part2) << 16) | (self.key_part1 & (self.key_part2 ^ 16759))
         self.key4 = self.key_part1 & self.key_part2
 
+    def addition(self, plaintText, length):
+        plaintText <<= (4 - length)*8
+        return plaintText
+
+    def calculateSingleBlock(self, plainText, lenPlainText):
+        result = 0
+        count_bytes = 8
+        bits_32 = 0xffffffff
+        lastBlock = plainText & (bits_32 >> (4 - lenPlainText) * 8)
+        lastBlock = self.addition(lastBlock, lenPlainText)
+        bits_32 = lastBlock & 0xffffffff
+        encryptedBits_32 = self.calculate(bits_32)
+        result |= encryptedBits_32
+        result <<= 32
+        controlBlock = self.calculate(lenPlainText)
+        result |= controlBlock
+        return result, count_bytes
+
     def job(self, plainText):
         lenPlainText = len(plainText)
+        plainText = int.from_bytes(plainText, 'big')
         result = 0
 
-        plainText = int.from_bytes(plainText, 'big')
+        if lenPlainText < 4:
+            return self.calculateSingleBlock(plainText, lenPlainText)
+
         shiftBits = lenPlainText*8 - 32
-        while shiftBits > -1:
+        lenOfLastBlock = lenPlainText % 4
+        if lenOfLastBlock == 0:
+            count_bytes = lenPlainText + 4
+            lenOfLastBlock = 4
+        else:
+            count_bytes = lenPlainText + (4 - lenOfLastBlock) + 4
+
+        while shiftBits >= 0:
             bits_32 = plainText >> shiftBits
             bits_32 &= 0xffffffff
             encryptedBits_32 = self.calculate(bits_32)
             result |= encryptedBits_32
-            if shiftBits >= 32:
-                result <<= 32
+            result <<= 32
             shiftBits -= 32
-        return result
+
+        bits_32 = 0xffffffff
+        lastBlock = plainText & (bits_32 >> (4 - lenOfLastBlock)*8)
+
+        if lenOfLastBlock != 4:
+            lastBlock = self.addition(lastBlock, lenOfLastBlock)
+            bits_32 = lastBlock & 0xffffffff
+            encryptedBits_32 = self.calculate(bits_32)
+            result |= encryptedBits_32
+            result <<= 32
+
+        controlBlock = self.calculate(lenOfLastBlock)
+        result |= controlBlock
+        return result, count_bytes
 
     def calculate(self, plaintText):
         resultText = self.layMessi(plaintText, self.key1)
