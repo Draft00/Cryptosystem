@@ -1,6 +1,8 @@
-def rol(x, n, size=2):
-    n = n % (size * 8)
-    return int('0b' + bin((x << n) | (x >> (size * 8 - n)))[-size * 8:], 2)
+def rol(x, n):
+    n = n % 16
+    bin_n = bin((x << n) | (x >> (16 - n)))
+    return int('0b' + bin_n[-min(16, len(bin_n) - 2):], 2)
+
 
 
 class CryptoSystem:
