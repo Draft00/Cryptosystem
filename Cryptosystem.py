@@ -1,11 +1,13 @@
-def rol(x, n, size=2):
-    n = n % (size * 8)
-    return int('0b' + bin((x << n) | (x >> (size * 8 - n)))[-size * 8:], 2)
+def rol(x, n):
+    n = n % 16
+    bin_n = bin((x << n) | (x >> (16 - n)))
+    return int('0b' + bin_n[-min(16, len(bin_n) - 2):], 2)
 
 
 class CryptoSystem:
-    def __init__(self, key, text):
+    def __init__(self, key, text, IV):
         self.key = int.from_bytes(key, 'big')
+        self.IV = int.from_bytes(IV, 'big')
         self.text = text
         self.S = [9, 15, 3, 13, 12, 0, 2, 10, 8, 11, 1, 7, 5, 6, 14, 4]
         self.SP_A = 29
@@ -35,7 +37,42 @@ class CryptoSystem:
         result |= controlBlock
         return result, count_bytes
 
-    def job(self, plainText):
+    def job3(self, plainText):
+        lenPlainText = len(plainText)
+        print(lenPlainText)
+        plainText = int.from_bytes(plainText, 'big')
+        result = []
+        blocks = []
+
+        shiftBits = lenPlainText * 8 - 32
+        lenOfLastBlock = lenPlainText % 4
+        if lenOfLastBlock == 0:
+            lenOfLastBlock = 4
+
+        while shiftBits >= 0:
+            bits_32 = plainText >> shiftBits
+            bits_32 &= 0xffffffff
+            blocks.append(bits_32)
+            shiftBits -= 32
+
+        if lenOfLastBlock != 4:
+            bits_32 = 0xffffffff
+            lastBlock = plainText & (bits_32 >> (4 - lenOfLastBlock) * 8)
+            lastBlock = self.addition(lastBlock, lenOfLastBlock)
+            bits_32 = lastBlock & 0xffffffff
+            blocks.append(bits_32)
+
+        blocks.append(lenOfLastBlock)
+
+        inText = self.IV
+        for idx, block in enumerate(blocks):
+            inText = self.calculate(inText)
+            encryptedBits_32 = inText ^ block
+            result.append(encryptedBits_32)
+
+        return result
+
+    def job2(self, plainText):
         lenPlainText = len(plainText)
         plainText = int.from_bytes(plainText, 'big')
         result = 0
