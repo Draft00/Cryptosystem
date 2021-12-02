@@ -23,27 +23,42 @@ class CryptoSystem:
         plaintText <<= (4 - length)*8
         return plaintText
 
-    def calculateSingleBlock(self, plainText, lenPlainText):
-        result = 0
-        count_bytes = 8
-        bits_32 = 0xffffffff
-        lastBlock = plainText & (bits_32 >> (4 - lenPlainText) * 8)
-        lastBlock = self.addition(lastBlock, lenPlainText)
-        bits_32 = lastBlock & 0xffffffff
-        encryptedBits_32 = self.calculate(bits_32)
-        result |= encryptedBits_32
-        result <<= 32
-        controlBlock = self.calculate(lenPlainText)
-        result |= controlBlock
-        return result, count_bytes
+    def getPlainTextBlocks(self, plainText, lenPlainText):
+        blocks = []
+
+        shiftBits = lenPlainText * 8 - 32
+
+        lenOfLastBlock = lenPlainText % 4
+        if lenOfLastBlock == 0:
+            lenOfLastBlock = 4
+
+        while shiftBits >= 0:
+            bits_32 = plainText >> shiftBits
+            bits_32 &= 0xffffffff
+            blocks.append(bits_32)
+            shiftBits -= 32
+
+        if lenOfLastBlock != 4:
+            bits_32 = 0xffffffff
+            lastBlock = plainText & (bits_32 >> (4 - lenOfLastBlock) * 8)
+            lastBlock = self.addition(lastBlock, lenOfLastBlock)
+            bits_32 = lastBlock & 0xffffffff
+            blocks.append(bits_32)
+
+        if lenOfLastBlock == 4:
+            lenOfIncompleteBlock = 0
+        else:
+            lenOfIncompleteBlock = lenOfLastBlock
+
+        if self.a == self.OptionsA.TO_BACK.value:
+            blocks.append(lenOfIncompleteBlock)
+
+        return blocks
 
     def job(self, plainText):
         lenPlainText = len(plainText)
         plainText = int.from_bytes(plainText, 'big')
         result = 0
-
-        if lenPlainText < 4:
-            return self.calculateSingleBlock(plainText, lenPlainText)
 
         shiftBits = lenPlainText*8 - 32
         lenOfLastBlock = lenPlainText % 4
